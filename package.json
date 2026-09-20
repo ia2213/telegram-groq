@@ -1,14 +1,14 @@
 {
-  "name": "telegram-groq",
+  "name": "muralteacherbot",
   "type": "module",
   "version": "1.0.0",
-  "description": "Chat with Groq in Telegram",
-  "main": "index.js",
+  "description": "Mural Teacher · Telegram AI Language Tutor & Mini App",
+  "main": "src/bot.js",
   "scripts": {
     "dev": "nodemon src/bot.js",
     "start": "node src/bot.js"
   },
-  "author": "MichaelYuhe",
+  "author": "ia2213",
   "license": "MIT",
   "dependencies": {
     "better-sqlite3": "^13.0.3",
