@@ -383,6 +383,37 @@ bot.on('message:voice', async (ctx) => {
 });
 
 // ─────────────────────────────────────────────
+// Safe Edit / Reply Helper
+// ─────────────────────────────────────────────
+async function safeEdit(ctx, text, reply_markup = undefined) {
+  try {
+    if (ctx.callbackQuery) {
+      await ctx.editMessageText(text, {
+        parse_mode: 'HTML',
+        reply_markup: reply_markup
+      });
+    } else {
+      await ctx.reply(text, {
+        parse_mode: 'HTML',
+        reply_markup: reply_markup
+      });
+    }
+  } catch (err) {
+    if (err.message && err.message.includes('message is not modified')) {
+      return; // Already current state
+    }
+    try {
+      await ctx.reply(text, {
+        parse_mode: 'HTML',
+        reply_markup: reply_markup
+      });
+    } catch (replyErr) {
+      console.error('safeEdit error:', replyErr.message);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
 // Callback Queries Dispatcher
 // ─────────────────────────────────────────────
 bot.on('callback_query:data', async (ctx) => {
@@ -390,41 +421,26 @@ bot.on('callback_query:data', async (ctx) => {
   const userId = ctx.from.id;
   const user = getUser(userId, ctx.from.username, ctx.from.first_name);
 
-  await ctx.answerCallbackQuery().catch(() => {});
-
   const [action, ...args] = data.split(':');
 
   // Navigation callbacks
   if (action === 'nav') {
+    await ctx.answerCallbackQuery().catch(() => {});
     const target = args[0];
     if (target === 'languages') {
-      await ctx.editMessageText('🌐 <b>Choisissez votre langue d’apprentissage :</b>', {
-        parse_mode: 'HTML',
-        reply_markup: buildLanguageKeyboard(user.learning_lang)
-      });
+      await safeEdit(ctx, '🌐 <b>Choisissez votre langue d’apprentissage :</b>', buildLanguageKeyboard(user.learning_lang));
     } else if (target === 'levels') {
-      await ctx.editMessageText('🎯 <b>Sélectionnez votre niveau CEFR :</b>', {
-        parse_mode: 'HTML',
-        reply_markup: buildLevelKeyboard(user.level || 'B2')
-      });
+      await safeEdit(ctx, '🎯 <b>Sélectionnez votre niveau CEFR :</b>', buildLevelKeyboard(user.level || 'B2'));
     } else if (target === 'themes') {
-      await ctx.editMessageText('🎭 <b>Sélectionnez une catégorie de scénarios :</b>', {
-        parse_mode: 'HTML',
-        reply_markup: buildThemeCategoriesKeyboard()
-      });
+      await safeEdit(ctx, '🎭 <b>Sélectionnez une catégorie de scénarios :</b>', buildThemeCategoriesKeyboard());
     } else if (target === 'srs') {
       await startSRSSession(ctx);
     } else if (target === 'wordlist') {
       await showAllWordsList(ctx, user);
     } else if (target === 'settings') {
-      await ctx.editMessageText(formatSettingsCard(user), {
-        parse_mode: 'HTML',
-        reply_markup: buildSettingsKeyboard(user)
-      });
+      await safeEdit(ctx, formatSettingsCard(user), buildSettingsKeyboard(user));
     } else if (target === 'back_chat') {
-      await ctx.editMessageText('💬 <b>Retour à la conversation.</b> Envoyez un message pour continuer.', {
-        parse_mode: 'HTML'
-      });
+      await safeEdit(ctx, '💬 <b>Retour à la conversation.</b> Envoyez un message texte ou vocal pour continuer.');
     }
     return;
   }
@@ -434,12 +450,10 @@ bot.on('callback_query:data', async (ctx) => {
     const newLang = args[0];
     updateUserSetting(userId, 'learning_lang', newLang);
     const lObj = getLanguage(newLang);
-    await ctx.answerCallbackQuery({ text: `Langue changée : ${lObj.name} !` });
+    await ctx.answerCallbackQuery({ text: `Langue changée : ${lObj.name} !` }).catch(() => {});
 
     const updatedUser = getUser(userId);
-    await ctx.editMessageText(`✅ <b>Langue cible configurée : ${lObj.flag} ${lObj.name} (${lObj.nativeName})</b>\n\nLançons une première discussion :`, {
-      parse_mode: 'HTML'
-    });
+    await safeEdit(ctx, `✅ <b>Langue cible configurée : ${lObj.flag} ${lObj.name} (${lObj.nativeName})</b>\n\nLançons une première discussion :`);
     await sendThemeOpening(ctx, updatedUser);
     return;
   }
@@ -448,23 +462,18 @@ bot.on('callback_query:data', async (ctx) => {
   if (action === 'setlevel') {
     const newLevel = args[0];
     updateUserSetting(userId, 'level', newLevel);
-    await ctx.answerCallbackQuery({ text: `Niveau mis à jour : ${newLevel} !` });
+    await ctx.answerCallbackQuery({ text: `Niveau mis à jour : ${newLevel} !` }).catch(() => {});
 
     const updatedUser = getUser(userId);
-    await ctx.editMessageText(`🎯 <b>Niveau CEFR mis à jour : ${newLevel}</b>\n\nLes prochaines réponses s'adapteront à ce niveau d'exigence.`, {
-      parse_mode: 'HTML',
-      reply_markup: buildSettingsKeyboard(updatedUser)
-    });
+    await safeEdit(ctx, `🎯 <b>Niveau CEFR mis à jour : ${newLevel}</b>\n\nLes prochaines réponses s'adapteront à ce niveau d'exigence.`, buildSettingsKeyboard(updatedUser));
     return;
   }
 
   // Theme Category
   if (action === 'themecat') {
+    await ctx.answerCallbackQuery().catch(() => {});
     const catId = args[0];
-    await ctx.editMessageText('🎭 <b>Sélectionnez un scénario pratique :</b>', {
-      parse_mode: 'HTML',
-      reply_markup: buildThemesListKeyboard(catId, user.current_theme)
-    });
+    await safeEdit(ctx, '🎭 <b>Sélectionnez un scénario pratique :</b>', buildThemesListKeyboard(catId, user.current_theme));
     return;
   }
 
@@ -473,13 +482,11 @@ bot.on('callback_query:data', async (ctx) => {
     const newThemeId = args[0];
     updateUserSetting(userId, 'current_theme', newThemeId);
     const th = getTheme(newThemeId);
-    await ctx.answerCallbackQuery({ text: `Scénario activé : ${th.title} !` });
+    await ctx.answerCallbackQuery({ text: `Scénario activé : ${th.title} !` }).catch(() => {});
 
     const updatedUser = getUser(userId);
     clearConversation(userId, updatedUser.learning_lang);
-    await ctx.editMessageText(`🎬 <b>Scénario activé : ${th.icon} ${th.title}</b>\n<i>« ${th.subtitle} »</i>\n\nL'instructeur démarre la mise en situation...`, {
-      parse_mode: 'HTML'
-    });
+    await safeEdit(ctx, `🎬 <b>Scénario activé : ${th.icon} ${th.title}</b>\n<i>« ${th.subtitle} »</i>\n\nL'instructeur démarre la mise en situation...`);
     await sendThemeOpening(ctx, updatedUser);
     return;
   }
@@ -491,18 +498,19 @@ bot.on('callback_query:data', async (ctx) => {
       const history = getRecentMessages(userId, user.learning_lang, 2);
       const lastAsst = history.filter(m => m.role === 'assistant').pop();
       if (lastAsst && lastAsst.content) {
-        await ctx.answerCallbackQuery({ text: '🔊 Génération de l’audio...' });
+        await ctx.answerCallbackQuery({ text: '🔊 Génération de l’audio...' }).catch(() => {});
         await sendTTSAudio(ctx, lastAsst.content, user.learning_lang);
       } else {
-        await ctx.answerCallbackQuery({ text: 'Aucun message récent à prononcer.', show_alert: true });
+        await ctx.answerCallbackQuery({ text: 'Aucun message récent à prononcer.', show_alert: true }).catch(() => {});
       }
     } else if (act === 'suggest') {
-      await ctx.answerCallbackQuery({ text: '💡 Regardez le bas du message pour la suggestion !', show_alert: true });
+      await ctx.answerCallbackQuery({ text: '💡 Regardez le bas du message pour la suggestion !', show_alert: true }).catch(() => {});
     } else if (act === 'reset_chat') {
       clearConversation(userId, user.learning_lang);
-      await ctx.answerCallbackQuery({ text: 'Conversation réinitialisée !' });
+      await ctx.answerCallbackQuery({ text: 'Conversation réinitialisée !' }).catch(() => {});
       await sendThemeOpening(ctx, user);
     } else if (act === 'prompt_key') {
+      await ctx.answerCallbackQuery().catch(() => {});
       pendingKeyPrompts.add(userId);
       await ctx.reply('🔑 <b>Entrez votre clé API Groq (gsk_...) en message texte :</b>', { parse_mode: 'HTML' });
     }
@@ -515,39 +523,34 @@ bot.on('callback_query:data', async (ctx) => {
     if (prop === 'auto_audio') {
       const newVal = user.auto_audio === 1 ? 0 : 1;
       updateUserSetting(userId, 'auto_audio', newVal);
-      await ctx.answerCallbackQuery({ text: `Audio auto : ${newVal === 1 ? 'ACTIVÉ' : 'DÉSACTIVÉ'}` });
+      await ctx.answerCallbackQuery({ text: `Audio auto : ${newVal === 1 ? 'ACTIVÉ' : 'DÉSACTIVÉ'}` }).catch(() => {});
     } else if (prop === 'subtitles') {
       const newVal = user.show_subtitles !== 0 ? 0 : 1;
       updateUserSetting(userId, 'show_subtitles', newVal);
-      await ctx.answerCallbackQuery({ text: `Sous-titres : ${newVal === 1 ? 'ACTIVÉS' : 'MASQUÉS'}` });
+      await ctx.answerCallbackQuery({ text: `Sous-titres : ${newVal === 1 ? 'ACTIVÉS' : 'MASQUÉS'}` }).catch(() => {});
     }
     const updated = getUser(userId);
-    await ctx.editMessageText(formatSettingsCard(updated), {
-      parse_mode: 'HTML',
-      reply_markup: buildSettingsKeyboard(updated)
-    });
+    await safeEdit(ctx, formatSettingsCard(updated), buildSettingsKeyboard(updated));
     return;
   }
 
   // SRS Actions
   if (action === 'srsreveal') {
+    await ctx.answerCallbackQuery().catch(() => {});
     const wordId = parseInt(args[0], 10);
     const session = reviewSessions.get(userId);
     if (!session || !session.words[session.index]) {
-      await ctx.answerCallbackQuery({ text: 'Session expirée.', show_alert: true });
+      await ctx.answerCallbackQuery({ text: 'Session expirée.', show_alert: true }).catch(() => {});
       return;
     }
     const wordItem = session.words[session.index];
     const card = formatSRSAnswerCard(wordItem, session.index, session.words.length, user);
-    await ctx.editMessageText(card, {
-      parse_mode: 'HTML',
-      reply_markup: buildSRSGradingKeyboard(wordId)
-    });
+    await safeEdit(ctx, card, buildSRSGradingKeyboard(wordId));
     return;
   }
 
   if (action === 'srslisten') {
-    const wordId = parseInt(args[0], 10);
+    await ctx.answerCallbackQuery().catch(() => {});
     const session = reviewSessions.get(userId);
     const wordItem = session?.words[session.index];
     if (wordItem) {
@@ -557,6 +560,7 @@ bot.on('callback_query:data', async (ctx) => {
   }
 
   if (action === 'srsgrade') {
+    await ctx.answerCallbackQuery().catch(() => {});
     const wordId = parseInt(args[0], 10);
     const grade = parseInt(args[1], 10);
     const session = reviewSessions.get(userId);
@@ -570,10 +574,7 @@ bot.on('callback_query:data', async (ctx) => {
       if (session.index < session.words.length) {
         const nextWord = session.words[session.index];
         const card = formatSRSReviewCard(nextWord, session.index, session.words.length, user);
-        await ctx.editMessageText(card, {
-          parse_mode: 'HTML',
-          reply_markup: buildSRSRevealKeyboard(nextWord.id)
-        });
+        await safeEdit(ctx, card, buildSRSRevealKeyboard(nextWord.id));
       } else {
         // Review completed celebration!
         reviewSessions.delete(userId);
@@ -589,21 +590,17 @@ Toutes vos cartes du jour ont été révisées avec succès !
 <i>Revenez demain pour la prochaine session d'ancrage mémoriel !</i>
 `.trim();
 
-        await ctx.editMessageText(celebMsg, {
-          parse_mode: 'HTML',
-          reply_markup: buildStatsKeyboard()
-        });
+        await safeEdit(ctx, celebMsg, buildStatsKeyboard());
       }
     }
     return;
   }
 
   if (action === 'wordinfo') {
-    const wordId = parseInt(args[0], 10);
+    await ctx.answerCallbackQuery({ text: 'Recherche des détails...' }).catch(() => {});
     const session = reviewSessions.get(userId);
     const wordItem = session?.words[session.index];
     if (wordItem) {
-      await ctx.answerCallbackQuery({ text: 'Recherche des détails...' });
       const explanation = await explainWordDetails(wordItem.word, user);
       await ctx.reply(`📖 <b>Détails lexicaux : ${wordItem.word}</b>\n\n${explanation}`, {
         parse_mode: 'HTML'
