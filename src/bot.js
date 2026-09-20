@@ -27,7 +27,7 @@ if (!token) {
   process.exit(1);
 }
 
-const bot = new Bot(token);
+const bot = new Bot(token, CONFIG.BOT_API_ROOT ? { client: { apiRoot: CONFIG.BOT_API_ROOT } } : undefined);
 
 // Global Error Handler to prevent crashes on expired callback queries or network hiccups
 bot.catch((err) => {

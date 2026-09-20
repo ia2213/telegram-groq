@@ -20,6 +20,7 @@ export const CONFIG = {
   LOCAL_API_URL: process.env.LOCAL_API_URL || 'http://localhost:20128/v1',
   LOCAL_API_KEY: process.env.LOCAL_API_KEY || process.env.HERMES_CUSTOM_LOCALHOST_20128_API_KEY || '',
   LOCAL_API_MODEL: process.env.LOCAL_API_MODEL || 'auto/fast',
+  BOT_API_ROOT: process.env.BOT_API_ROOT || '',
   PORT: parseInt(process.env.PORT || '3000', 10),
   WEBAPP_URL: process.env.WEBAPP_URL || '',
   DB_PATH: path.resolve(__dirname, '../mural_bot.db'),
