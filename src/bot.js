@@ -29,6 +29,12 @@ if (!token) {
 
 const bot = new Bot(token);
 
+// Global Error Handler to prevent crashes on expired callback queries or network hiccups
+bot.catch((err) => {
+  const ctx = err.ctx;
+  console.error(`Erreur lors du traitement de l'update ${ctx?.update?.update_id}:`, err.error?.message || err.message);
+});
+
 // In-memory state for user review queues and prompt listeners
 const reviewSessions = new Map(); // userId -> { words: [], index: 0 }
 const pendingKeyPrompts = new Set(); // Set of userIds awaiting API key text
@@ -54,7 +60,7 @@ bot.command('start', async (ctx) => {
 ╭─────────────────────────────────╮
 │  ✨ <b>MURAL TEACHER · AI TUTOR</b>  │
 ╰─────────────────────────────────╯
-Assalamu 'alaikum / Bonjour <b>${ctx.from.first_name}</b> ! 🌟
+Bonjour <b>${ctx.from.first_name}</b> ! 🌟
 
 Je suis <b>Mural Teacher</b>, votre professeur particulier et partenaire de conversation immersif propulsé par l'IA.
 
@@ -384,7 +390,7 @@ bot.on('callback_query:data', async (ctx) => {
   const userId = ctx.from.id;
   const user = getUser(userId, ctx.from.username, ctx.from.first_name);
 
-  await ctx.answerCallbackQuery();
+  await ctx.answerCallbackQuery().catch(() => {});
 
   const [action, ...args] = data.split(':');
 
