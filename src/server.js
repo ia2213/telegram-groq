@@ -12,6 +12,7 @@ import { generateTTSAudio } from './ttsService.js';
 import { transcribeAudioWithWhisper } from './groqClient.js';
 import { getAllLanguages } from './languages.js';
 import { getAllThemes } from './themes.js';
+import { getCurriculumCatalog, fetchAndParseLesson } from './gdriveCurriculum.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +30,7 @@ export function createServer() {
 
   // Health check
   app.get('/health', (req, res) => {
-    res.json({ status: 'ok', service: 'mural-teacher-miniapp' });
+    res.json({ status: 'ok', service: 'fluence-bot-api' });
   });
 
   // API: Get user profile & stats
@@ -141,6 +142,62 @@ export function createServer() {
     res.status(400).json({ error: 'Missing parameters' });
   });
 
+  // API: FSRS Sync from iOS App / Web / Hermes VPS
+  let vpsFSRSStore = {
+    profile: {
+      targetLanguage: 'de',
+      nativeLanguage: 'fr',
+      cefrLevel: 'B2',
+      interests: ['Médecine', 'Neurologie', 'Conversation'],
+      focusAreas: ['Allemand Médical (Assistenzarzt)', 'Subordonnées (weil, obwohl, dass)', 'Passif & Konjunktiv II'],
+      fsrsRetentionRate: 0.90,
+      totalSpokenMinutes: 0
+    },
+    fsrsItems: [],
+    fsrsParams: {
+      w: [0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192, 1.01925, 1.9395, 0.11, 0.29605, 0.22695, 0.2315, 2.9898],
+      targetRetention: 0.90,
+      maximumIntervalDays: 365.0,
+      totalReviewsCount: 0
+    }
+  };
+
+  app.post('/api/fsrs/sync', (req, res) => {
+    try {
+      const payload = req.body;
+      if (payload) {
+        if (payload.profile) vpsFSRSStore.profile = { ...vpsFSRSStore.profile, ...payload.profile };
+        if (payload.fsrsParams) vpsFSRSStore.fsrsParams = payload.fsrsParams;
+        if (Array.isArray(payload.fsrsItems)) {
+          const itemMap = new Map();
+          vpsFSRSStore.fsrsItems.forEach(it => itemMap.set(it.term.toLowerCase(), it));
+          payload.fsrsItems.forEach(it => {
+            const existing = itemMap.get(it.term.toLowerCase());
+            if (!existing || (it.reps && it.reps > (existing.reps || 0))) {
+              itemMap.set(it.term.toLowerCase(), it);
+            }
+          });
+          vpsFSRSStore.fsrsItems = Array.from(itemMap.values());
+        }
+      }
+      res.json({
+        profile: vpsFSRSStore.profile,
+        fsrsItems: vpsFSRSStore.fsrsItems,
+        fsrsParams: vpsFSRSStore.fsrsParams,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('FSRS sync error:', err);
+      res.status(500).json({ error: 'Sync failed' });
+    }
+  });
+
+  app.get('/api/fsrs/due', (req, res) => {
+    const language = req.query.language || 'de';
+    const items = vpsFSRSStore.fsrsItems.filter(it => (it.languageID || 'de') === language);
+    res.json({ dueItems: items.slice(0, 10), totalCount: items.length });
+  });
+
   // API: Get Languages
   app.get('/api/languages', (req, res) => {
     res.json(getAllLanguages());
@@ -149,6 +206,30 @@ export function createServer() {
   // API: Get Themes
   app.get('/api/themes', (req, res) => {
     res.json(getAllThemes());
+  });
+
+  // API: Google Drive Curriculum Catalog
+  app.get('/api/curriculum', async (req, res) => {
+    try {
+      const catalog = await getCurriculumCatalog();
+      res.json(catalog);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // API: Fetch & Parse Specific Lesson from Google Drive
+  app.get('/api/curriculum/lesson', async (req, res) => {
+    try {
+      const { level, filename } = req.query;
+      if (!level || !filename) {
+        return res.status(400).json({ error: 'Missing level or filename' });
+      }
+      const lesson = await fetchAndParseLesson(level, filename);
+      res.json(lesson);
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   return app;

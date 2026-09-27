@@ -1,91 +1,39 @@
-/* Modern Glassmorphism & UI/UX Pro Max Styles */
 
-:root {
-  --app-height: 100%;
-}
-
+:root { --app-height: 100%; }
 html, body {
-  height: 100%;
-  height: 100dvh;
-  margin: 0;
-  padding: 0;
+  height: 100%; height: 100dvh; margin: 0; padding: 0;
   -webkit-tap-highlight-color: transparent;
+  background-color: #FDFBF7; color: #292524;
 }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #E7E5E4; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #D6D3D1; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
+.glass-panel { background: #FFFFFF; border: 1px solid #E7E5E4; border-radius: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+.theme-card-bg { background: #FFFFFF; border: 1px solid #E7E5E4; border-radius: 8px; }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.wave-active-1 { transform: scale(1.4); opacity: 0.5 !important; border-color: #A7F3D0; }
+.wave-active-2 { transform: scale(1.8); opacity: 0.2 !important; border-color: #6EE7B7; }
 
-/* Glassmorphism Card */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
+.perspective-1000 { perspective: 1000px; }
+.transform-style-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; }
 
-/* Living Mural Orb Wave states */
-.wave-active-1 {
-  transform: scale(1.6);
-  opacity: 0.6 !important;
-}
-.wave-active-2 {
-  transform: scale(2.1);
-  opacity: 0.3 !important;
-}
-
-/* Flip Card 3D effect */
-.perspective-1000 {
-  perspective: 1000px;
-}
-.transform-style-3d {
-  transform-style: preserve-3d;
-}
-.backface-hidden {
-  backface-visibility: hidden;
-}
-
-/* Chat bubble styling */
 .chat-bubble-teacher {
-  background: rgba(30, 41, 59, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-top-left-radius: 4px;
+  background: #FFFFFF; border: 1px solid #E7E5E4;
+  border-radius: 12px 12px 12px 2px; color: #292524;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02); padding: 12px;
 }
-
 .chat-bubble-user {
-  background: linear-gradient(135deg, #0284c7 0%, #4f46e5 100%);
-  border-top-right-radius: 4px;
+  background: #F3F4F6; border: 1px solid #E5E7EB;
+  border-radius: 12px 12px 2px 12px; color: #374151; padding: 12px;
 }
 
-/* Sound wave bars */
 .sound-bar {
-  width: 3px;
-  border-radius: 2px;
-  background: #38bdf8;
+  width: 3px; border-radius: 2px; background: #10B981;
   animation: bounce 1s ease-in-out infinite;
 }
-
-@keyframes bounce {
-  0%, 100% { height: 4px; }
-  50% { height: 16px; }
-}
+@keyframes bounce { 0%, 100% { height: 4px; } 50% { height: 16px; } }

@@ -1,5 +1,5 @@
 /**
- * Mural Teacher · Telegram Mini App Frontend
+ * Fluence Teacher · Telegram Mini App Frontend
  * Powered by Telegram WebApp SDK + UI/UX Pro Max
  * Works seamlessly on local server AND standalone GitHub Pages!
  */
@@ -102,9 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load API Key Settings
 function loadApiKeySettings() {
   try {
-    const key = localStorage.getItem('mural_groq_api_key') || currentUser.groq_api_key || '';
-    const model = localStorage.getItem('mural_groq_model') || currentUser.groq_model || 'llama-3.3-70b-versatile';
-    const provider = localStorage.getItem('mural_api_provider') || 'groq';
+    const key = localStorage.getItem('fluence_groq_api_key') || localStorage.getItem('mural_groq_api_key') || currentUser.groq_api_key || '';
+    const model = localStorage.getItem('fluence_groq_model') || localStorage.getItem('mural_groq_model') || currentUser.groq_model || 'llama-3.3-70b-versatile';
+    const provider = localStorage.getItem('fluence_api_provider') || localStorage.getItem('mural_api_provider') || 'groq';
 
     const keyInput = document.getElementById('apiKeyInput');
     if (keyInput && key) keyInput.value = key;
@@ -140,7 +140,7 @@ function handleProviderChange() {
   } else if (provider === 'gemini') {
     if (keyContainer) keyContainer.classList.remove('hidden');
     if (keyHint) keyHint.textContent = 'AIzaSy...';
-    if (docLink) docLink.innerHTML = 'Obtenez une clé sur <a href="https://aistudio.google.com" target="_blank" class="text-sky-400 underline">aistudio.google.com</a>';
+    if (docLink) docLink.innerHTML = 'Obtenez une clé sur <a href="https://aistudio.google.com" target="_blank" class="text-tg-hint underline">aistudio.google.com</a>';
     if (modelSelect) {
       modelSelect.innerHTML = `
         <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
@@ -151,7 +151,7 @@ function handleProviderChange() {
   } else if (provider === 'openai') {
     if (keyContainer) keyContainer.classList.remove('hidden');
     if (keyHint) keyHint.textContent = 'sk-...';
-    if (docLink) docLink.innerHTML = 'Obtenez une clé sur <a href="https://platform.openai.com" target="_blank" class="text-sky-400 underline">platform.openai.com</a>';
+    if (docLink) docLink.innerHTML = 'Obtenez une clé sur <a href="https://platform.openai.com" target="_blank" class="text-tg-hint underline">platform.openai.com</a>';
     if (modelSelect) {
       modelSelect.innerHTML = `
         <option value="gpt-4o">GPT-4o (OpenAI)</option>
@@ -162,7 +162,7 @@ function handleProviderChange() {
     // Groq default
     if (keyContainer) keyContainer.classList.remove('hidden');
     if (keyHint) keyHint.textContent = 'gsk_...';
-    if (docLink) docLink.innerHTML = 'Obtenez une clé gratuite sur <a href="https://console.groq.com/keys" target="_blank" class="text-sky-400 underline">console.groq.com</a>';
+    if (docLink) docLink.innerHTML = 'Obtenez une clé gratuite sur <a href="https://console.groq.com/keys" target="_blank" class="text-tg-hint underline">console.groq.com</a>';
     if (modelSelect) {
       modelSelect.innerHTML = `
         <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Recommandé - Pédagogie & Nuances)</option>
@@ -196,9 +196,9 @@ async function saveApiKeySettings() {
   const key = document.getElementById('apiKeyInput')?.value?.trim() || '';
   const model = document.getElementById('aiModelSelect')?.value || 'llama-3.3-70b-versatile';
 
-  localStorage.setItem('mural_api_provider', provider);
-  localStorage.setItem('mural_groq_api_key', key);
-  localStorage.setItem('mural_groq_model', model);
+  localStorage.setItem('fluence_api_provider', provider);
+  localStorage.setItem('fluence_groq_api_key', key);
+  localStorage.setItem('fluence_groq_model', model);
 
   currentUser.groq_api_key = key;
   currentUser.groq_model = model;
@@ -236,18 +236,25 @@ async function saveApiKeySettings() {
 // Load preferences from localStorage
 function loadSavedPreferences() {
   try {
-    const saved = localStorage.getItem('mural_user_prefs');
+    const saved = localStorage.getItem('fluence_user_prefs') || localStorage.getItem('mural_user_prefs');
     if (saved) {
-      currentUser = { ...currentUser, ...JSON.parse(saved) };
+      const parsed = JSON.parse(saved);
+      currentUser = { ...currentUser, ...parsed };
     }
   } catch (e) {}
 }
 
-// Save preferences to localStorage
+// Save preferences to localStorage and server
 function savePreferences() {
   try {
-    localStorage.setItem('mural_user_prefs', JSON.stringify(currentUser));
+    localStorage.setItem('fluence_user_prefs', JSON.stringify(currentUser));
   } catch (e) {}
+
+  if (currentUser.id) {
+    if (currentUser.learning_lang) updateUserSetting('learning_lang', currentUser.learning_lang);
+    if (currentUser.level) updateUserSetting('level', currentUser.level);
+    if (currentUser.current_theme) updateUserSetting('current_theme', currentUser.current_theme);
+  }
 }
 
 // Load User Data
@@ -294,8 +301,8 @@ function switchTab(tabId) {
   haptic('light');
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-btn').forEach(el => {
-    el.classList.remove('text-sky-400');
-    el.classList.add('text-slate-400');
+    el.classList.remove('text-tg-hint');
+    el.classList.add('text-tg-hint');
   });
 
   const activeTab = document.getElementById(`tab-${tabId}`);
@@ -303,8 +310,8 @@ function switchTab(tabId) {
 
   const activeNav = document.getElementById(`nav-${tabId}`);
   if (activeNav) {
-    activeNav.classList.remove('text-slate-400');
-    activeNav.classList.add('text-sky-400');
+    activeNav.classList.remove('text-tg-hint');
+    activeNav.classList.add('text-tg-hint');
   }
 
   if (tabId === 'srs') {
@@ -533,13 +540,18 @@ function generateClientAIResponse(userMsg, user) {
 
 // Append User Bubble
 function appendUserMessage(text, isVoice = false) {
+  const userTextEl = document.getElementById('whisperUserText');
+  if (userTextEl && text) {
+    userTextEl.textContent = `« Vous : ${text} »`;
+    userTextEl.classList.remove('hidden');
+  }
   const container = document.getElementById('messagesContainer');
   if (!container) return;
 
   const div = document.createElement('div');
   div.className = 'flex justify-end animate-fade-in';
   div.innerHTML = `
-    <div class="chat-bubble-user max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 shadow-lg text-white text-xs sm:text-sm">
+    <div class="chat-me max-w-[85%] p-3 text-[15px]">
       <div class="flex items-center gap-1.5 mb-1 opacity-80 text-[10px]">
         <span>${isVoice ? '🎙️ Message vocal' : '👤 Vous'}</span>
       </div>
@@ -552,6 +564,9 @@ function appendUserMessage(text, isVoice = false) {
 
 // Append Teacher Card
 function appendTeacherMessage(data) {
+  if (typeof updateWhisperTypography === 'function' && data) {
+    updateWhisperTypography(data.reply, data.translationFr, data.correction);
+  }
   const container = document.getElementById('messagesContainer');
   if (!container) return;
 
@@ -564,13 +579,13 @@ function appendTeacherMessage(data) {
   let vocabHtml = '';
   if (data.vocabulary && data.vocabulary.length > 0) {
     vocabHtml = `
-      <div class="mt-2.5 pt-2 border-t border-white/[0.08]">
-        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">📚 Vocabulaire Clé :</p>
+      <div class="mt-2.5 pt-2 border-t border-tg-hint/20">
+        <p class="text-[10px] font-bold text-tg-hint uppercase tracking-wider mb-1">📚 Vocabulaire Clé :</p>
         <div class="space-y-1">
           ${data.vocabulary.map(v => `
-            <div class="flex items-baseline justify-between text-xs bg-slate-900/60 px-2 py-1 rounded-lg border border-white/[0.04]">
-              <span class="font-bold text-sky-300">${escapeHtml(v.word)}</span>
-              <span class="text-slate-300 italic text-[11px]">${escapeHtml(v.translation)}</span>
+            <div class="flex items-baseline justify-between text-xs bg-stone-50/60 px-2 py-1 rounded-lg ">
+              <span class="font-bold text-stone-700">${escapeHtml(v.word)}</span>
+              <span class="text-tg-hint italic text-[11px]">${escapeHtml(v.translation)}</span>
             </div>
           `).join('')}
         </div>
@@ -592,11 +607,11 @@ function appendTeacherMessage(data) {
   if (data.translationFr && currentUser.show_subtitles) {
     translationHtml = `
       <details class="mt-2.5 group">
-        <summary class="text-[11px] font-semibold text-sky-400 cursor-pointer hover:text-sky-300 flex items-center gap-1">
+        <summary class="text-[11px] font-semibold text-tg-hint cursor-pointer hover:text-stone-700 flex items-center gap-1">
           <span>🇫🇷 Traduction en français</span>
           <span class="text-[9px] transition-transform group-open:rotate-180">▼</span>
         </summary>
-        <p class="text-xs text-slate-300 italic mt-1.5 p-2 rounded-lg bg-slate-900/50 border border-white/[0.04]">
+        <p class="text-xs text-tg-hint italic mt-1.5 p-2 rounded-lg bg-stone-50/50 ">
           ${escapeHtml(data.translationFr)}
         </p>
       </details>
@@ -604,19 +619,19 @@ function appendTeacherMessage(data) {
   }
 
   div.innerHTML = `
-    <div class="chat-bubble-teacher max-w-[90%] sm:max-w-[80%] rounded-2xl p-4 shadow-xl text-white text-xs sm:text-sm bg-slate-800/80 border border-white/[0.08]">
-      <div class="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.06] text-[11px]">
-        <div class="flex items-center gap-1.5 font-bold text-sky-400">
+    <div class="chat-bot max-w-[90%] sm:max-w-[80%] rounded-2xl p-4 shadow-xl text-tg-text text-[15px] chat-bot">
+      <div class="flex items-center justify-between pb-2 mb-2 border-b border-tg-hint/20 text-[11px]">
+        <div class="flex items-center gap-1.5 font-bold text-tg-hint">
           <span>${flag}</span>
-          <span>Mural · ${currentUser.level}</span>
+          <span>Fluence · ${currentUser.level}</span>
         </div>
-        <button onclick="playTTS('${escapeQuote(data.reply)}', '${currentUser.learning_lang}')" class="px-2 py-0.5 rounded-full bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1 text-[10px] font-semibold transition">
+        <button onclick="playTTS('${escapeQuote(data.reply)}', '${currentUser.learning_lang}')" class="px-2 py-0.5 rounded-full bg-stone-100 hover:bg-sky-500/20 text-stone-700 border border-stone-200 flex items-center gap-1 text-[10px] font-semibold transition">
           <span>🔊</span>
           <span>Écouter</span>
         </button>
       </div>
 
-      <p class="leading-relaxed font-medium text-slate-100">${escapeHtml(data.reply)}</p>
+      <p class="leading-relaxed font-medium text-tg-text">${escapeHtml(data.reply)}</p>
 
       ${translationHtml}
       ${correctionHtml}
@@ -634,8 +649,8 @@ function renderInitialMessage() {
   if (!container || container.children.length > 0) return;
 
   const data = {
-    reply: "Hallo! Ich bin dein Mural-Sprachlehrer. Wie kann ich dir heute beim Deutschlernen helfen?",
-    translationFr: "Bonjour ! Je suis ton tuteur de langue Mural. Comment puis-je t'aider aujourd'hui dans ton apprentissage de l'allemand ?",
+    reply: "Hallo! Ich bin dein Fluence-Sprachlehrer. Wie kann ich dir heute beim Deutschlernen helfen?",
+    translationFr: "Bonjour ! Je suis ton tuteur de langue Fluence. Comment puis-je t'aider aujourd'hui dans ton apprentissage de l'allemand ?",
     suggestedReply: "Ich möchte mein Deutsch für das B2-Niveau verbessern.",
     vocabulary: [
       { word: "der Sprachlehrer", translation: "le professeur / tuteur de langue", example: "" }
@@ -721,11 +736,11 @@ function renderSettingsLanguages() {
   grid.innerHTML = languagesList.map(lang => {
     const isSelected = lang.id === currentUser.learning_lang;
     return `
-      <button onclick="selectLanguage('${lang.id}')" class="p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${isSelected ? 'bg-sky-500/20 border-sky-500 text-white' : 'bg-slate-800/60 border-white/[0.06] text-slate-300 hover:bg-slate-700/60'}">
+      <button onclick="selectLanguage('${lang.id}')" class="p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${isSelected ? 'bg-sky-500/20 border-sky-500 text-tg-text' : 'bg-white border-stone-200 text-tg-hint hover:bg-stone-100/60'}">
         <span class="text-xl">${lang.flag}</span>
         <div class="mt-1">
           <p class="text-xs font-bold truncate">${lang.name}</p>
-          <p class="text-[10px] text-slate-400 truncate">${lang.nativeName}</p>
+          <p class="text-[10px] text-tg-hint truncate">${lang.nativeName}</p>
         </div>
       </button>
     `;
@@ -751,9 +766,9 @@ async function selectLevel(level) {
 
   document.querySelectorAll('.level-btn').forEach(btn => {
     if (btn.textContent.trim() === level) {
-      btn.className = 'level-btn py-2 rounded-lg bg-sky-500 text-xs font-bold text-white';
+      btn.className = 'level-btn py-2 rounded-xl bg-indigo-600 text-xs font-bold text-white shadow-md shadow-indigo-600/30 transition';
     } else {
-      btn.className = 'level-btn py-2 rounded-lg bg-slate-800 text-xs font-bold text-slate-300 hover:bg-slate-700';
+      btn.className = 'level-btn py-2 rounded-xl bg-white/5 text-xs font-medium text-slate-300 hover:bg-white/10 transition';
     }
   });
 }
@@ -773,12 +788,12 @@ async function loadThemes() {
 function filterThemes(cat) {
   haptic('light');
   document.querySelectorAll('.theme-cat-btn').forEach(btn => {
-    btn.classList.remove('bg-sky-500', 'text-white');
-    btn.classList.add('bg-slate-800', 'text-slate-300');
+    btn.classList.remove('bg-sky-500', 'text-tg-text');
+    btn.classList.add('chat-bot', 'text-tg-hint');
   });
   if (event?.target) {
-    event.target.classList.add('bg-sky-500', 'text-white');
-    event.target.classList.remove('bg-slate-800', 'text-slate-300');
+    event.target.classList.add('bg-sky-500', 'text-tg-text');
+    event.target.classList.remove('chat-bot', 'text-tg-hint');
   }
 
   renderThemes(cat);
@@ -794,14 +809,14 @@ function renderThemes(category) {
   grid.innerHTML = filtered.map(t => {
     const isCurrent = t.id === currentUser.current_theme;
     return `
-      <div onclick="selectTheme('${t.id}')" class="cursor-pointer p-3.5 rounded-2xl border transition relative overflow-hidden flex flex-col justify-between ${isCurrent ? 'bg-gradient-to-tr from-sky-900/40 to-indigo-900/40 border-sky-500 shadow-lg shadow-sky-500/10' : 'bg-slate-800/60 hover:bg-slate-700/60 border-white/[0.06]'}">
+      <div onclick="selectTheme('${t.id}')" class="cursor-pointer p-3 rounded-xl border border-tg-hint/20 transition relative overflow-hidden flex flex-col justify-between ${isCurrent ? 'bg-tg-btn/10 border-2 border-tg-btn' : 'ios-card'}">
         <div class="flex items-start justify-between">
-          <span class="text-2xl p-2 rounded-xl bg-slate-900/60 border border-white/[0.06]">${t.icon}</span>
-          ${isCurrent ? '<span class="px-2 py-0.5 rounded-full bg-sky-500 text-white text-[10px] font-bold">Actif</span>' : ''}
+          <span class="text-2xl p-2 rounded-xl bg-stone-50/60 border border-stone-200">${t.icon}</span>
+          ${isCurrent ? '<span class="px-2 py-0.5 rounded-full bg-sky-500 text-tg-text text-[10px] font-bold">Actif</span>' : ''}
         </div>
         <div class="mt-3">
-          <h4 class="font-display font-bold text-xs sm:text-sm text-white">${escapeHtml(t.name)}</h4>
-          <p class="text-[11px] text-slate-400 mt-1 line-clamp-2">${escapeHtml(t.desc)}</p>
+          <h4 class="font-display font-bold text-xs sm:text-sm text-tg-text">${escapeHtml(t.name)}</h4>
+          <p class="text-[11px] text-tg-hint mt-1 line-clamp-2">${escapeHtml(t.desc)}</p>
         </div>
       </div>
     `;
@@ -921,12 +936,12 @@ function renderVocabList(words) {
   if (!container) return;
 
   container.innerHTML = words.map(w => `
-    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/40 border border-white/[0.04] text-xs">
+    <div class="flex items-center justify-between p-2.5 rounded-xl chat-bot/40 text-[15px]">
       <div>
-        <span class="font-bold text-white">${escapeHtml(w.word)}</span>
-        <span class="text-slate-400 text-[11px] ml-2">→ ${escapeHtml(w.translation_fr)}</span>
+        <span class="font-bold text-tg-text">${escapeHtml(w.word)}</span>
+        <span class="text-tg-hint text-[11px] ml-2">→ ${escapeHtml(w.translation_fr)}</span>
       </div>
-      <button onclick="playTTS('${escapeQuote(w.word)}', '${currentUser.learning_lang}')" class="text-sky-400 hover:text-sky-300 p-1">
+      <button onclick="playTTS('${escapeQuote(w.word)}', '${currentUser.learning_lang}')" class="text-tg-hint hover:text-stone-700 p-1">
         🔊
       </button>
     </div>

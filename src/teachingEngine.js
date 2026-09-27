@@ -6,21 +6,29 @@ import { addOrUpdateWord } from './database.js';
 export function buildSystemPrompt(user) {
   const lang = getLanguage(user.learning_lang);
   const theme = getTheme(user.current_theme);
-  const level = user.level || 'B2';
-  const levelFocus = lang.teachingFocus[level] || lang.teachingFocus.B2;
+  const level = user.level || 'A1';
+  const levelFocus = lang.teachingFocus[level] || lang.teachingFocus.A1 || lang.teachingFocus.B2;
 
   return `
-You are Mural, an engaging, warm, professional native AI conversation tutor helping the learner master ${lang.name} (${lang.nativeName}).
+You are Fluence, an expert native language teacher and personal tutor helping the learner master ${lang.name} (${lang.nativeName}).
 Your current target level is CEFR ${level}.
 Learner support language is French (Français).
 
-PEDAGOGICAL & CONVERSATIONAL RULES:
-1. Speak ONLY ${lang.name} in your main response.
-2. Adapt your vocabulary and grammar strictly to CEFR ${level} level: "${levelFocus}".
-3. Keep your main turn concise (1-2 short, natural paragraphs, max 80-100 words) so the conversation stays lively.
-4. Always end with ONE natural, engaging question or concrete choice to keep the dialogue flowing.
-5. Context/Scenario: ${theme.title} (${theme.situation}).
-6. ${lang.speechGuidance} ${lang.writingGuidance}
+══════════════════════════════════════════════════════════════════
+TRUE TEACHER & PEDAGOGICAL METHOD RULES:
+══════════════════════════════════════════════════════════════════
+1. ACT AS A REAL DEDICATED TEACHER:
+   - Teach structured micro-lessons: introduce new vocabulary, explain grammar points simply, and ask the student to construct or repeat sentences.
+   - If the student makes a mistake, immediately provide a clear, gentle explanation in French and give the correct sentence to repeat.
+2. STRICT ANTI-REPETITION RULE:
+   - NEVER start or repeat the same repetitive chit-chat questions ("Wie geht's?", "Was machst du heute?").
+   - Move forward with new topics, concrete situations, roleplay, and active learning drills.
+3. ADAPT TO CEFR ${level}:
+   - Focus: "${levelFocus}".
+   - Keep sentences clear and accessible, and end each turn with ONE specific question or prompt.
+4. Scenario / Theme: ${theme.title} (${theme.situation}).
+5. ${lang.speechGuidance} ${lang.writingGuidance}
+══════════════════════════════════════════════════════════════════
 
 OUTPUT FORMAT REQUIREMENTS:
 You MUST respond using this exact structured format with distinct sections:
@@ -93,6 +101,19 @@ export function parseStructuredResponse(rawOutput, langId = 'de') {
           example: parts[2] || ''
         });
       }
+    }
+  }
+
+  // Check adaptive CEFR progression
+  if (user) {
+    const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    const currIdx = levels.indexOf(user.level || 'B2');
+    user.turnCount = (user.turnCount || 0) + 1;
+    // Every 6 successful turns without major breakdowns, promote to next CEFR level
+    if (user.turnCount >= 6 && currIdx >= 0 && currIdx < levels.length - 1) {
+      user.turnCount = 0;
+      user.level = levels[currIdx + 1];
+      result.levelPromotion = user.level;
     }
   }
 

@@ -2,17 +2,18 @@ import { InlineKeyboard, Keyboard } from 'grammy';
 import { getLanguage, getAllLanguages } from './languages.js';
 import { getTheme, THEME_CATEGORIES, getThemesByCategory } from './themes.js';
 import { getRecallBars, generateProgressBar, getStreakBadge } from './srsEngine.js';
+import { NEURAL_VOICES, getDefaultVoiceForLang } from './ttsService.js';
 
-// Main Reply Keyboard (Ergonomic 3x3)
+// Ergonomic Persistent Reply Keyboard (2x3 Layout - 100% Native Telegram)
 export function buildMainKeyboard() {
   return new Keyboard()
-    .text('💬 Conversation').text('🎙️ Mode Oral (Vocal)').text('📱 Mini App Mural')
+    .text('🎙️ Parler avec le Professeur').text('📚 Mes Cours & Leçons')
     .row()
-    .text('🎭 Thèmes & Scénarios').text('📚 Mon Carnet (SRS)').text('📊 Mes Statistiques')
+    .text('🧠 Répétition FSRS (Vocab)').text('🎯 Mon Niveau & Langue')
     .row()
-    .text('🌐 Changer de Langue').text('🎯 Niveau CEFR').text('⚙️ Paramètres')
+    .text('🔊 Voix Studio & Débit').text('⚙️ Paramètres & Stats')
     .resized()
-    .placeholder('Discutez ou choisissez une action…');
+    .placeholder('Parlez par message vocal ou texte…');
 }
 
 // Conversation Turn Response Card
@@ -34,12 +35,12 @@ export function formatTeacherCard(parsed, user, options = {}) {
 
   // Gentle Correction / Grammar Recast if available
   if (parsed.correction) {
-    msg += `💡 <b>Point Correction & Grammaire :</b>\n${parsed.correction}\n\n`;
+    msg += `💡 <b>Correction & Règle :</b>\n${parsed.correction}\n\n`;
   }
 
   // Discovered Vocabulary / Chunks
   if (parsed.vocabulary && parsed.vocabulary.length > 0) {
-    msg += `📚 <b>Vocabulaire clé (Ajouté au Carnet SRS) :</b>\n`;
+    msg += `📚 <b>Vocabulaire clé (Ajouté au FSRS) :</b>\n`;
     for (const v of parsed.vocabulary) {
       msg += `• <b>${v.word}</b> : <i>${v.translation}</i>\n`;
     }
@@ -58,16 +59,16 @@ export function formatTeacherCard(parsed, user, options = {}) {
 export function buildTurnInlineKeyboard(parsed, user) {
   const kb = new InlineKeyboard();
 
-  kb.text('🎧 Écouter (Audio)', 'action:listen')
+  kb.text('🔄 Réécouter l\'audio', 'action:listen')
     .text('💡 Suggestion', 'action:suggest');
 
   kb.row()
-    .text('📚 Carnet SRS', 'nav:srs')
-    .text('🔀 Changer Thème', 'nav:themes');
+    .text('🧠 Carnet FSRS', 'nav:srs')
+    .text('🔀 Scénario', 'nav:themes');
 
   kb.row()
-    .text(`🎯 Niveau: ${user.level || 'B2'}`, 'nav:levels')
-    .text('⚙️ Réglages', 'nav:settings');
+    .text(`🎯 Niveau : ${user.level || 'B2'}`, 'nav:levels')
+    .text('🎙️ Voix Studio', 'nav:voice');
 
   return kb;
 }
@@ -82,11 +83,11 @@ export function buildLanguageKeyboard(currentLangId) {
     const l2 = languages[i + 1];
 
     const p1 = l1.id === currentLangId ? '✅ ' : '';
-    kb.text(`${p1}${l1.flag} ${l1.name} (${l1.nativeName})`, `setlang:${l1.id}`);
+    kb.text(`${p1}${l1.flag} ${l1.name}`, `setlang:${l1.id}`);
 
     if (l2) {
       const p2 = l2.id === currentLangId ? '✅ ' : '';
-      kb.text(`${p2}${l2.flag} ${l2.name} (${l2.nativeName})`, `setlang:${l2.id}`);
+      kb.text(`${p2}${l2.flag} ${l2.name}`, `setlang:${l2.id}`);
     }
     kb.row();
   }
@@ -99,12 +100,12 @@ export function buildLanguageKeyboard(currentLangId) {
 export function buildLevelKeyboard(currentLevel = 'B2') {
   const kb = new InlineKeyboard();
   const levels = [
-    { id: 'A1', label: '🟢 A1 · Débutant', desc: 'Phrases très simples' },
-    { id: 'A2', label: '🟢 A2 · Élémentaire', desc: 'Situations du quotidien' },
-    { id: 'B1', label: '🟡 B1 · Intermédiaire', desc: 'Raconter, exprimer des souhaits' },
-    { id: 'B2', label: '🟡 B2 · Intermédiaire Sup.', desc: 'Débats & Pro (Recommandé)' },
-    { id: 'C1', label: '🟣 C1 · Avancé', desc: 'Nuances et vocabulaire riche' },
-    { id: 'C2', label: '🟣 C2 · Bilingue / Maîtrise', desc: 'Aisance totale' }
+    { id: 'A1', label: '🟢 A1 · Débutant' },
+    { id: 'A2', label: '🟢 A2 · Élémentaire' },
+    { id: 'B1', label: '🟡 B1 · Intermédiaire' },
+    { id: 'B2', label: '🟡 B2 · Intermédiaire Sup.' },
+    { id: 'C1', label: '🟣 C1 · Médical & Avancé' },
+    { id: 'C2', label: '🟣 C2 · Maîtrise Totale' }
   ];
 
   for (let i = 0; i < levels.length; i += 2) {
@@ -158,25 +159,25 @@ export function formatSRSReviewCard(wordItem, queueIndex, queueTotal, user) {
   const progressBar = generateProgressBar(queueIndex + 1, queueTotal);
   const recallBar = getRecallBars(wordItem.repetitions);
 
-  let msg = `🧠 <b>SESSION DE RÉVISION SRS · CARTE ${queueIndex + 1} / ${queueTotal}</b>\n`;
+  let msg = `🧠 <b>RÉPÉTITION ESPACÉE FSRS · CARTE ${queueIndex + 1} / ${queueTotal}</b>\n`;
   msg += `📊 Progression : ${progressBar}\n`;
-  msg += `🌐 Langue : <b>${lang.flag} ${lang.name}</b> · Statut : ${recallBar}\n`;
+  msg += `🌐 Langue : <b>${lang.flag} ${lang.name}</b> · Mémorisation : ${recallBar}\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
   msg += `📝 <b>Mot / Expression à mémoriser :</b>\n`;
   msg += `👉 <code>${wordItem.word}</code>\n\n`;
 
   if (wordItem.example_sentence) {
-    msg += `📖 <b>Contexte d'utilisation :</b>\n<i>« ${wordItem.example_sentence} »</i>\n\n`;
+    msg += `📖 <b>Exemple de contexte :</b>\n<i>« ${wordItem.example_sentence} »</i>\n\n`;
   }
 
-  msg += `<i>Tentez de vous remémorer le sens en français, puis cliquez pour révéler la réponse.</i>`;
+  msg += `<i>Tentez de retrouver le sens en français, puis cliquez pour vérifier.</i>`;
   return msg;
 }
 
 export function buildSRSRevealKeyboard(wordId) {
   return new InlineKeyboard()
-    .text('👁️ Révéler le sens & Évaluer', `srsreveal:${wordId}`).row()
+    .text('👁️ Révéler la réponse & Évaluer', `srsreveal:${wordId}`).row()
     .text('🎧 Écouter la prononciation', `srslisten:${wordId}`).row()
     .text('🛑 Quitter la session', 'nav:back_chat');
 }
@@ -185,7 +186,7 @@ export function formatSRSAnswerCard(wordItem, queueIndex, queueTotal, user) {
   const lang = getLanguage(user.learning_lang);
   const progressBar = generateProgressBar(queueIndex + 1, queueTotal);
 
-  let msg = `🧠 <b>SESSION DE RÉVISION SRS · ${queueIndex + 1} / ${queueTotal}</b>\n`;
+  let msg = `🧠 <b>RÉPÉTITION ESPACÉE FSRS · ${queueIndex + 1} / ${queueTotal}</b>\n`;
   msg += `📊 Progression : ${progressBar}\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
@@ -196,7 +197,7 @@ export function formatSRSAnswerCard(wordItem, queueIndex, queueTotal, user) {
     msg += `📖 <b>Exemple :</b> <i>« ${wordItem.example_sentence} »</i>\n\n`;
   }
 
-  msg += `<b>Comment avez-vous trouvé cette carte ?</b>`;
+  msg += `<b>Indiquez votre niveau de facilité :</b>`;
   return msg;
 }
 
@@ -208,7 +209,7 @@ export function buildSRSGradingKeyboard(wordId) {
     .text('🟦 Bon (4j)', `srsgrade:${wordId}:3`)
     .text('🟩 Facile (10j)', `srsgrade:${wordId}:4`)
     .row()
-    .text('🔍 Fiche détaillée du mot', `wordinfo:${wordId}`)
+    .text('🔍 Fiche détaillée', `wordinfo:${wordId}`)
     .row()
     .text('🛑 Terminer la session', 'nav:back_chat');
 }
@@ -226,28 +227,26 @@ export function formatStatsDashboard(user, stats, wordsList) {
   let msg = `📊 <b>TABLEAU DE BORD · ${user.first_name || 'Apprenant'}</b>\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-  msg += `🔥 <b>Série d'assiduité (Streak) :</b>\n`;
+  msg += `🔥 <b>Série d'assiduité :</b>\n`;
   msg += `${streakInfo.badge} <b>${stats.streak_days || 0} jours consécutifs</b> — <i>${streakInfo.title}</i>\n\n`;
 
   msg += `🌐 <b>Configuration Active :</b>\n`;
   msg += `• Langue cible : <b>${lang.flag} ${lang.name}</b>\n`;
   msg += `• Niveau actuel : <b>${user.level || 'B2'}</b>\n`;
-  msg += `• Scénario : <b>${theme.icon} ${theme.title}</b>\n`;
-  msg += `• Modèle IA : <code>${user.groq_model || 'llama-3.3-70b-versatile'}</code>\n\n`;
+  msg += `• Scénario actif : <b>${theme.icon} ${theme.title}</b>\n\n`;
 
-  msg += `📚 <b>Carnet de Vocabulaire (${wordsList.length} mots enregistrés) :</b>\n`;
-  msg += `• 🟩 Maîtrisés : <b>${mastered}</b> mots\n`;
-  msg += `• 🟨 En apprentissage : <b>${learning}</b> mots\n`;
-  msg += `• ⬜ Découverts : <b>${newWords}</b> mots\n`;
-  msg += `• 💬 Messages échangés : <b>${stats.messages_count || 0}</b>\n\n`;
+  msg += `📚 <b>Carnet de Vocabulaire FSRS (${wordsList.length} mots) :</b>\n`;
+  msg += `• 🟩 Mémorisés : <b>${mastered}</b> mots\n`;
+  msg += `• 🟨 En cours d'ancrage : <b>${learning}</b> mots\n`;
+  msg += `• ⬜ Nouveaux : <b>${newWords}</b> mots\n`;
+  msg += `• 💬 Messages échangés : <b>${stats.messages_count || 0}</b>\n`;
 
-  msg += `<i>Pratiquez 5 à 10 minutes chaque jour pour ancrer vos réflexes linguistiques !</i>`;
   return msg;
 }
 
 export function buildStatsKeyboard() {
   return new InlineKeyboard()
-    .text('🧠 Réviser mes cartes SRS', 'nav:srs')
+    .text('🧠 Réviser le vocabulaire FSRS', 'nav:srs')
     .text('📋 Voir tout le carnet', 'nav:wordlist')
     .row()
     .text('🔄 Réinitialiser la discussion', 'action:reset_chat')
@@ -261,18 +260,20 @@ export function formatSettingsCard(user) {
   const lang = getLanguage(user.learning_lang);
   const audioMode = user.auto_audio === 1 ? '🔊 Activé (Vocal automatique)' : '🔇 Texte (Audio sur demande)';
   const subtitles = user.show_subtitles !== 0 ? '👁️ Affichés' : '🙈 Masqués';
+  const voice = user.user_voice || getDefaultVoiceForLang(user.learning_lang || 'de');
+  const speed = user.user_speed || '+0%';
 
-  let msg = `⚙️ <b>PARAMÈTRES & PRÉFÉRENCES · MURAL TEACHER</b>\n`;
+  let msg = `⚙️ <b>PARAMÈTRES & PRÉFÉRENCES · FLUENCE</b>\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
   msg += `🌐 <b>Langue cible :</b> ${lang.flag} ${lang.name} (${lang.nativeName})\n`;
   msg += `🎯 <b>Niveau CEFR :</b> ${user.level || 'B2'}\n`;
-  msg += `🎙️ <b>Mode Audio Réponse :</b> ${audioMode}\n`;
-  msg += `🇫🇷 <b>Sous-titres Français :</b> ${subtitles}\n`;
-  msg += `⚡ <b>Modèle IA :</b> <code>${user.groq_model || 'llama-3.3-70b-versatile'}</code>\n`;
-  msg += `🔑 <b>Clé API Groq :</b> ${user.groq_api_key ? '✅ Personnalisée' : '⚡ Système standard'}\n\n`;
+  msg += `🎙️ <b>Voix Studio :</b> <code>${voice}</code>\n`;
+  msg += `⚡ <b>Débit vocal :</b> <code>${speed}</code>\n`;
+  msg += `🔊 <b>Réponse Vocale :</b> ${audioMode}\n`;
+  msg += `🇫🇷 <b>Sous-titres Traduits :</b> ${subtitles}\n\n`;
 
-  msg += `<i>Cliquez ci-dessous pour modifier vos options :</i>`;
+  msg += `<i>Touchez une option ci-dessous pour la modifier :</i>`;
   return msg;
 }
 
@@ -280,7 +281,7 @@ export function buildSettingsKeyboard(user) {
   const kb = new InlineKeyboard();
 
   const toggleAudioLabel = user.auto_audio === 1 ? '🔊 Audio Auto : ON' : '🔇 Audio Auto : OFF';
-  const toggleSubLabel = user.show_subtitles !== 0 ? '🇫🇷 Sous-titres : ON' : '🇫🇷 Sous-titres : OFF';
+  const toggleSubLabel = user.show_subtitles !== 0 ? '🇫🇷 Traduction : ON' : '🇫🇷 Traduction : OFF';
 
   kb.text(toggleAudioLabel, 'toggle:auto_audio')
     .text(toggleSubLabel, 'toggle:subtitles');
@@ -290,8 +291,8 @@ export function buildSettingsKeyboard(user) {
     .text('🎯 Changer de Niveau', 'nav:levels');
 
   kb.row()
-    .text('🔑 Configurer Clé Groq', 'action:prompt_key')
-    .text('⚡ Changer de Modèle', 'nav:models');
+    .text('🎙️ Choisir la Voix Studio', 'nav:voice')
+    .text('📊 Mes Statistiques', 'nav:stats');
 
   kb.row()
     .text('🔙 Retour à la conversation', 'nav:back_chat');
